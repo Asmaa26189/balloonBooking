@@ -1,8 +1,8 @@
 const express = require('express');
 const Order = require('../models/Order');
 const User = require('../models/User');
-const BalloonSchedule = require('./BalloonSchedule');
-const BalloonRide = require('./BalloonRide');
+const BalloonSchedule = require('../models/BalloonSchedule');
+const BalloonRide = require('../models/BalloonRide');
 const router = express.Router();
 const sendEmail = require('../email/emailservice');
 

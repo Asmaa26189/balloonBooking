@@ -61,7 +61,7 @@ router.get('/schedule_date/:date', async (req, res) => {
 router.get('/check', async (req, res) => {
   try {
 
-    const dateStr = req.params.date;//'2024-10-31' YYYY-MM-DD format
+    const dateStr = req.query.date;//'2024-10-31' YYYY-MM-DD format
     
     // Convert string to Date object
     const date = new Date(dateStr);
@@ -72,17 +72,24 @@ router.get('/check', async (req, res) => {
     // Map day number to day name
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayName = days[dayOfWeek];
-    const from = req.params.f_time; // h:m
-    const to = req.params.t_time; // h:m
+    const from = req.query.f_time; // h:m
+    const to = req.query.t_time; // h:m
     
-    const f_hour = from.split(':')[0];
-    const f_min = from.split(':')[1];
+    const f_hour = parseInt(from.split(':')[0], 10);
+    const f_min = parseInt(from.split(':')[1], 10);
 
-    const t_hour = to.split(':')[0];
-    const t_min = to.split(':')[1];
+    const t_hour = parseInt(to.split(':')[0], 10);
+    const t_min = parseInt(to.split(':')[1], 10);
     
-    const schedules = await BalloonSchedule.find({ day: dayName ,startTime : { hour: f_hour}, });
-    res.status(200).send(schedules);
+    const schedules = await BalloonSchedule.find({ day: dayName ,"startTime.hours": f_hour,
+                                                                "startTime.minutes": f_min ,
+                                                                "endTime.hours": t_hour ,
+                                                                "endTime.minutes": t_min  });
+    if(schedules.length == 0)
+    {
+      return res.status(200).send({'message':"Not Available"});
+    }
+    return res.status(200).send({'message':"Available"});
   } catch (error) {
     res.status(500).send({ error: 'Failed to retrieve schedules by Date', details: error.message });
   }
