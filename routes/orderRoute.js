@@ -1,6 +1,8 @@
 const express = require('express');
 const Order = require('../models/Order');
 const User = require('../models/User');
+const BalloonSchedule = require('./BalloonSchedule');
+const BalloonRide = require('./BalloonRide');
 const router = express.Router();
 const sendEmail = require('../email/emailservice');
 
@@ -9,7 +11,7 @@ const checkSeatAvailability = async (balloonScheduleId, seatsRequested) => {
   if (!schedule) throw new Error('Schedule not found');
 
   // Check if requested seats exceed available seats
-  return (seatsRequested > schedule.emptySeats)
+  return (seatsRequested <= schedule.emptySeats)
 };
 
 const cancelOrder = async (orderId) => {
@@ -35,14 +37,36 @@ router.post('/', async (req, res) => {
    
     const user = await User.findById(req.body.user);
     if (!user) throw new Error('User not found');
+    const cart = await User.findById(req.body.cart);
+    if (!cart) throw new Error('Cart not found');
+
+    let allSeatsAvailable = true; // Flag to check availability
+
+    // Loop through the items to check availability
+    for (const item of cart.items) {
+      let seatsRequested = item.adult + item.child; // Adjust based on your logic for seat requests
+
+      const isAvailable = await checkSeatAvailability(item.schedule, seatsRequested);
+      if (!isAvailable) {
+        allSeatsAvailable = false; // Set the flag to false if any item is not available
+        return res.status(400).send({
+          error: `Not enough seats available for the service: ${item.schedule.balloonRide.title}`
+        });
+      }
+    }
+    
+    
+    const order = new Order(req.body);
+    await order.save();
+
     // Send confirmation email
-    // const { email } = user.email; // Email of the user placing the order
+    const { email } = user.email; // Email of the user placing the order
     const subject = 'Order Confirmation';
     const text = `Thank you for your order. Your order number is ${order.orderNumber}.`;
     const html = `<p>Thank you for your order. Your order number is <strong>${order.orderNumber}</strong>.</p>`;
-    
     await sendEmail(user.email, subject, text, html);
-    
+
+
     res.status(201).send(order);
   } catch (error) {
     res.status(400).send({ error: 'Failed to create order', details: error.message });
@@ -63,6 +87,7 @@ router.get('/', async (req, res) => {
     res.status(500).send({ error: 'Failed to retrieve orders', details: error.message });
   }
 });
+
 
 // GET: Get orders by user ID
 router.get('/user/:userId', async (req, res) => {
